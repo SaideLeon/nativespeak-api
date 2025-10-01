@@ -1,0 +1,130 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. Alteração da Fonte de Dados: PostgreSQL para MongoDB
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo User CORRIGIDO
+model User {
+  id                     String  @id @default(auto()) @map("_id") @db.ObjectId
+  email                  String  @unique // <-- O @unique já cria o índice
+  password               String
+  firstName              String
+  lastName               String
+  studyStartDate         DateTime @default(now())
+  termsAccepted          Boolean @default(false)
+  credits                Int     @default(3000)
+  totalConversationTime  Int     @default(0) // in seconds
+  completedLessons       Int     @default(0)
+  avatar                 String  @default("person")
+  theme                  String  @default("default")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  // Relations
+  achievements           Achievement[]
+  lessonProgress         LessonProgress[]
+  todos                  Todo[]
+  conversationHistory    ConversationHistory[]
+  evaluations            Evaluation[]
+
+  // Linha removida: @@index([email])
+  @@map("users")
+}
+
+// 3. Modelos de Relação atualizados para MongoDB
+
+model Achievement {
+  id                     String    @id @default(auto()) @map("_id") @db.ObjectId
+  // O tipo deve ser ObjectId para corresponder ao ID do User
+  userId                 String    @db.ObjectId 
+  achievementId          String    // ID from frontend (e.g., 'first_session')
+  unlockedAt             DateTime  @default(now())
+
+  // Configuração da Relação: 'references' aponta para 'id' do modelo User.
+  user                   User      @relation(fields: [userId], references: [id])
+
+  // @@unique com ObjectId
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("achievements")
+}
+
+model LessonProgress {
+  id                     String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId                 String    @db.ObjectId
+  lessonTopic            String    // e.g., 'ordering-food'
+  currentStep            Int       @default(1)
+  updatedAt              DateTime  @updatedAt
+
+  user                   User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, lessonTopic])
+  @@index([userId])
+  @@map("lesson_progress")
+}
+
+model Todo {
+  id                     String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId                 String    @db.ObjectId
+  text                   String
+  status                 String    @default("todo") // 'todo' | 'inProgress' | 'completed'
+  isHeader               Boolean   @default(false)
+  duration               Int       @default(0) // in seconds
+  order                  Int?      // Opcional, pois pode não ter valor em todo documento
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  user                   User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, order])
+  @@map("todos")
+}
+
+model ConversationHistory {
+  id                     String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId                 String    @db.ObjectId
+  sessionId              String    // Group conversations by session
+  role                   String    // 'user' | 'agent' | 'system'
+  text                   String    @db.String // Em MongoDB, @db.Text não é usado. Usamos String ou String @db.String para grandes textos.
+  isFinal                Boolean   @default(true)
+  timestamp              DateTime  @default(now())
+
+  user                   User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, sessionId])
+  @@index([userId, timestamp])
+  @@map("conversation_history")
+}
+
+model Evaluation {
+  id                     String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId                 String    @db.ObjectId
+  sessionId              String    // Link to conversation session
+  rating                 String    // 'Péssima' | 'Média' | 'Alta'
+  feedback               String    @db.String
+  createdAt              DateTime  @default(now())
+
+  user                   User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@map("evaluations")
+}
+
+model OnlinePresence {
+  id                     String    @id @default(auto()) @map("_id") @db.ObjectId
+  userEmail              String    @unique
+  firstName              String
+  avatar                 String
+  lastSeen               DateTime  @default(now())
+
+  @@index([lastSeen])
+  @@map("online_presence")
+}

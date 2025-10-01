@@ -1,0 +1,8 @@
+/node_modules
+/download-ripgrepDjgPPc
+/dist
+.idx
+.env
+.git
+/package-lock.json
+
