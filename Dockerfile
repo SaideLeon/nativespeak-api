@@ -13,7 +13,7 @@ COPY package*.json ./
 # 4.1️⃣ Copia também o schema do Prisma antes do npm install
 COPY prisma ./prisma
 
-# 5️⃣ Instala todas as dependências (incluindo devDependencies)
+# 5️⃣ Instala todas as dependências 
 # O script postinstall vai rodar o 'prisma generate' aqui.
 RUN npm install
 
