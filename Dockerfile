@@ -1,33 +1,37 @@
-# --- Production Stage ---
-# This stage creates the final, lean image for production.
-FROM node:20-slim AS production
+# 1️⃣ Imagem base: node:20-alpine
+# Imagem muito leve para reduzir o tamanho final
+FROM node:20-alpine
 
-# Set working directory
+# 2️⃣ Instalação de dependências do sistema
+# O Prisma requer 'openssl' para funcionar no runtime.
+RUN apk add --no-cache openssl
+
+# 3️⃣ Diretório de trabalho
 WORKDIR /app
 
-# Copy package files 
+# 4️⃣ Copia apenas os manifests para aproveitar o cache do Docker
 COPY package*.json ./
 
-# Adicionar ESTA LINHA: Copiar o diretório 'prisma' para o estágio de production
-# Isso garante que o 'schema.prisma' esteja presente quando o 'postinstall' do Prisma rodar.
-COPY prisma ./prisma/
+# 5️⃣ Instala todas as dependências (incluindo devDependencies)
+# O script postinstall vai rodar o 'prisma generate' aqui.
+RUN npm install
 
-# Install only production dependencies. The 'postinstall' script will run 'npx prisma generate'.
-RUN npm install --omit=dev
+# 6️⃣ Copia todo o código-fonte para dentro do container
+COPY . .
 
-# Copy the built application from the builder stage
-COPY --from=builder /app/dist ./dist
+# 7️⃣ Gera o cliente do Prisma (se o postinstall falhar ou para garantir)
+# Se já rodou no 'npm install', será rápido. Se não, garante a geração.
+RUN npx prisma generate
 
-# NOTA: A linha abaixo é redundante após a alteração acima, 
-# mas não causa erro. Deixe-a ou remova-a. Se for removida, o Prisma 
-# ainda funcionará, mas o arquivo 'schema.prisma' em si não será copiado
-# após a geração do cliente. Vamos mantê-lo para ter o schema no runtime.
-# COPY --from=builder /app/prisma/schema.prisma ./prisma/schema.prisma
+# 8️⃣ Compila TypeScript
+RUN npm run build
 
+# 9️⃣ Limpa dependências de desenvolvimento
+# Remove arquivos e dependências desnecessárias para reduzir o tamanho final da imagem.
+RUN npm prune --production
 
-# Expose the port the application will run on
-# The server runs on PORT 4000 by default (from src/server.ts)
+# 🔟 Expõe a porta que a aplicação vai usar
 EXPOSE 4000
 
-# Command to run the application using the start script from package.json
-CMD ["npm", "start"]
+# 1️⃣1️⃣ Comando para iniciar a aplicação
+CMD ["npm", "run", "start"]
