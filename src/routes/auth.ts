@@ -36,11 +36,11 @@ router.post('/register', async (req, res) => {
     });
 
     if (existingUser) {
-      return res.status(400).json({ error: 'Já existe um usuário com este e-mail.' });
+      return res.status(400).json({ success: false, message: 'Já existe um usuário com este e-mail.' });
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create user
     const user = await prisma.user.create({
@@ -70,16 +70,20 @@ router.post('/register', async (req, res) => {
     const token = generateToken(user.id, user.email);
 
     res.status(201).json({
+      success: true,
       message: 'Usuário criado com sucesso',
       user,
       token,
     });
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors });
+      return res.status(400).json({ success: false, message: 'Dados inválidos', details: error.errors });
+    }
+    if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
+      return res.status(400).json({ success: false, message: 'Já existe um usuário com este e-mail.' });
     }
     console.error('Register error:', error);
-    res.status(500).json({ error: 'Erro ao criar usuário' });
+    res.status(500).json({ success: false, message: 'Erro interno ao criar usuário' });
   }
 });
 
@@ -98,13 +102,13 @@ router.post('/login', async (req, res) => {
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
+      return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
     }
 
     // Check password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
+      return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
     }
 
     // Generate JWT
@@ -114,16 +118,17 @@ router.post('/login', async (req, res) => {
     const { password: _, ...userWithoutPassword } = user;
 
     res.json({
+      success: true,
       message: 'Login realizado com sucesso',
       user: userWithoutPassword,
       token,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors });
+      return res.status(400).json({ success: false, message: 'Dados inválidos', details: error.errors });
     }
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Erro ao fazer login' });
+    res.status(500).json({ success: false, message: 'Erro interno ao fazer login' });
   }
 });
 
@@ -152,13 +157,13 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
     }
 
-    res.json(user);
+    res.json({ success: true, user });
   } catch (error) {
     console.error('Get me error:', error);
-    res.status(500).json({ error: 'Erro ao buscar usuário' });
+    res.status(500).json({ success: false, message: 'Erro interno ao buscar usuário' });
   }
 });
 
@@ -182,12 +187,13 @@ router.post('/accept-terms', authenticateToken, async (req: AuthRequest, res) =>
     });
 
     res.json({
+      success: true,
       message: 'Termos aceitos com sucesso',
       user,
     });
   } catch (error) {
     console.error('Accept terms error:', error);
-    res.status(500).json({ error: 'Erro ao aceitar termos' });
+    res.status(500).json({ success: false, message: 'Erro interno ao aceitar termos' });
   }
 });
 
