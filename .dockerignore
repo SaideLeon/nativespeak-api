@@ -1,0 +1,23 @@
+# Node modules
+node_modules
+
+# Build output
+dist
+
+# Git files
+.git
+.gitignore
+
+# Environment variables
+.env
+.env.example
+
+# Documentation
+README.md
+GEMINI.md
+
+# Docker files
+Dockerfile
+
+# IDX specific files
+.idx
